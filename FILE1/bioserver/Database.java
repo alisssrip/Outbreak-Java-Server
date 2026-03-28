@@ -20,374 +20,370 @@
 
 package bioserver;
 
-import java.sql.Connection;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.sql.PreparedStatement;
 import java.io.UnsupportedEncodingException;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * class for managing the database
  */
 public class Database {
-    // TODO: read from ini-file, don't save credentials in class!
-    private final String url = "jdbc:mysql://localhost:3306/bioserver"
-                         +"?useUnicode=true&characterEncoding=UTF-8";
-    private String user = "bioserver";
-    private String password = "xxxxxxxxxxxxxxxx";
-    
-    private Connection con = null;
-    
-    // simple constructor to create a reusable connection to the database
-    public Database(String db_user, String db_password) {
-        this.user = db_user;
-        this.password = db_password;
 
-        try {
-            con = (Connection) DriverManager.getConnection(url, user, password);
-        } catch (SQLException ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
-        // setup some things on server restart
-        // set area to -1, rooms, slots and gamesessions to 0
-        this.setupDBrestart();
-    }
-    
-    
-    // test connection and create a new one on failure
-    private void testConnection() {
-        PreparedStatement pst = null;
-        try {
-            pst = (PreparedStatement) con.prepareStatement("select 1;");
-            pst.executeQuery();
-        } catch (SQLException ex) {
-            try {
-                if (pst != null) {
-                    pst.close();
-                }
-                if (con != null) {
-                    con.close();
-                }            
-            } catch (SQLException e) {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, e);
-            }
-            // create a new connection
-            try {
-                this.con = (Connection) DriverManager.getConnection(url, user, password);
-            } catch (SQLException ex1) {
-                Logger.getLogger(Database.class.getName()).log(Level.SEVERE, null, ex1);
-            }
-        }
+    //borre el contructor puke usaba un archivo para leer la base de datos localmente.
+    //Como es un embole levantar una db con mariadb para hacer pruebas, voy a hacer levantar endpoints para la db
+    //Asi que modifique gran parte de este codigo.
+    private String apiUrl = "https://yoko.makii.net/api/java";
+    private final HttpClient client;
+
+    public Database() {
+        this.client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
     }
 
-    
     // get userid of an existing session
     public String getUserid(String sessid) {
-        ResultSet rs = null;
-        PreparedStatement pst = null;
-        // check it out ;-)
-        this.testConnection();
-        
         String retval = "";
         try {
-            pst = (PreparedStatement) con.prepareStatement(String.format("select userid from sessions where sessid='%s'", sessid));
-            rs = pst.executeQuery();
-            if(rs.next()){
-                retval = rs.getString("userid");            
+            String safeSessid = java.net.URLEncoder.encode(sessid, "UTF-8");
+            URI targetURI = new URI(apiUrl + "sessions/" + safeSessid + "/user");
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(targetURI)
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200)
+            {
+                retval = response.body().trim();
+            } else if (response.statusCode() == 404)
+            {
+                Logger.getLogger(Database.class.getName()).log(Level.INFO, "session not found: " + sessid);
+            } else
+            {
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Error searching session: HTTP " + response.statusCode());
             }
-            
-        } catch (SQLException ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-        } finally {
-            try {
-                if(rs != null) {
-                    rs.close();
-                }
-                if(pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException ex) {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-            }
+
         }
-        
-        return retval;
+        catch (Exception ex)
+        {
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Failed to get userid by sessionid ", ex);
+        }
+
+        return retval; // Retorna el userid o vacío ("") si falló
     }
-    
+
 
     // get handle/nickname list for a given userid
     public HNPairs getHNPairs(String userid) {
-        ResultSet rs = null;
-        PreparedStatement pst = null;
         HNPairs hns = new HNPairs();
-        String nickname;
-        
+
         try {
-            pst = (PreparedStatement) con.prepareStatement(String.format("select handle,nickname from hnpairs where userid='%s' limit 0,3", userid));
-            rs = pst.executeQuery();
-            while(rs.next()){
-                hns.add(new HNPair(rs.getString("handle"), rs.getString("nickname")));
-            }
-            
-        } catch (SQLException ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-        } finally {
-            try {
-                if(rs != null) {
-                    rs.close();
+            String safeUserId = java.net.URLEncoder.encode(userid, "UTF-8");
+            URI targetURI = new URI(apiUrl + "users/" + safeUserId + "/hnpairs");
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(targetURI)
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                String jsonResponse = response.body();
+
+                JsonArray jsonArray = JsonParser.parseString(jsonResponse).getAsJsonArray();
+
+                for (JsonElement element : jsonArray) {
+                    JsonObject obj = element.getAsJsonObject();
+                    String handle = obj.get("handle").getAsString();
+                    String nickname = obj.get("nickname").getAsString();
+
+                    hns.add(new HNPair(handle, nickname));
                 }
-                if(pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException ex) {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
+
+            } else if (response.statusCode() == 404) {
+                Logger.getLogger(Database.class.getName()).log(Level.INFO, "User dont have any character created");
+            } else {
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Error HNPairs: HTTP " + response.statusCode());
             }
+
+        } catch (Exception ex) {
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Red fail getHNPairs", ex);
         }
-        
+
         return hns;
     }
 
-    
+
     // check if a handles exists
     // returns true when handle is free
     public boolean checkHandle(String handle) {
-        ResultSet rs = null;
-        PreparedStatement pst = null;
-        boolean retval = false;
-        
+        boolean isFree = false;
+
         try {
-            pst = (PreparedStatement) con.prepareStatement(String.format("select count(*) as cnt from hnpairs where handle='%s'", handle));
-            rs = pst.executeQuery();
-            if(rs.next()){
-                if(rs.getInt("cnt") == 0) retval=true;
+            String safeHandle = java.net.URLEncoder.encode(handle, "UTF-8");
+
+            URI targetURI = new URI(apiUrl + "handles/" + safeHandle);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(targetURI)
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 404) {
+                isFree = true;
+            } else if (response.statusCode() == 200) {
+                isFree = false;
+            } else {
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Error verifying Handle: HTTP " + response.statusCode());
             }
-            
-        } catch (SQLException ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-        } finally {
-            try {
-                if(rs != null) {
-                    rs.close();
-                }
-                if(pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException ex) {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-            }
+
+        } catch (Exception ex) {
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Red network error on checkHandle", ex);
         }
-        
-        return retval;        
+
+        return isFree;
     }
 
-    
+
     // insert a new handle/nickname into database
     public void createNewHNPair(Client cl) {
-        ResultSet rs = null;
-        PreparedStatement pst = null;
         try {
             String nickname;
             try {
-                nickname = new String(cl.getHNPair().getNickname(),"SJIS");
+                nickname = new String(cl.getHNPair().getNickname(), "SJIS");
             } catch (UnsupportedEncodingException ex) {
                 nickname = "sjis";
             }
-            pst = (PreparedStatement) con.prepareStatement(String.format("insert into hnpairs (userid,handle,nickname) values ('%s','%s','%s')", 
-                    cl.getUserID(), new String(cl.getHNPair().getHandle()), nickname));
-            pst.executeUpdate();
-        } catch (SQLException ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-        } finally {
-            try {
-                if(rs != null) {
-                    rs.close();
-                }
-                if(pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException ex) {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
+
+            String handle = new String(cl.getHNPair().getHandle());
+            String userid = cl.getUserID();
+
+            JsonObject json = new JsonObject();
+            json.addProperty("userid", userid);
+            json.addProperty("handle", handle);
+            json.addProperty("nickname", nickname);
+
+            URI targetURI = new URI(apiUrl + "hnpairs");
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(targetURI)
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json.toString()))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200 && response.statusCode() != 201) {
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Failed to create HN Pair: HTTP " + response.statusCode());
             }
+
         }
+        catch (Exception ex)
+        {
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Network error in createNewHNPair", ex);
+            }
     }
 
-    
     // update handle/nickname of a client
     public void updateHNPair(Client cl) {
-        ResultSet rs = null;
-        PreparedStatement pst = null;
-        String nickname;
         try {
-            nickname = new String(cl.getHNPair().getNickname(),"SJIS");
-        } catch (UnsupportedEncodingException ex) {
-            nickname = "sjis";
-        }
-
-        try {
-            pst = (PreparedStatement) con.prepareStatement(String.format("update hnpairs set nickname='%s' where userid='%s' and handle='%s'", 
-                    nickname, cl.getUserID(), new String(cl.getHNPair().getHandle())));
-            pst.executeUpdate();
-        } catch (SQLException ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-        } finally {
+            String nickname;
             try {
-                if(rs != null) {
-                    rs.close();
-                }
-                if(pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException ex) {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
+                nickname = new String(cl.getHNPair().getNickname(), "SJIS");
+            } catch (UnsupportedEncodingException ex) {
+                nickname = "sjis";
             }
-        }        
+
+            String handle = new String(cl.getHNPair().getHandle());
+            String userid = cl.getUserID();
+
+            JsonObject json = new JsonObject();
+            json.addProperty("userid", userid);
+            json.addProperty("handle", handle);
+            json.addProperty("nickname", nickname);
+
+            URI targetURI = new URI(apiUrl + "hnpairs");
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(targetURI)
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Content-Type", "application/json")
+                    .PUT(HttpRequest.BodyPublishers.ofString(json.toString()))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200 && response.statusCode() != 204) {
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Failed to update HN Pair: HTTP " + response.statusCode());
+            }
+
+        } catch (Exception ex) {
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Network error in updateHNPair", ex);
+        }
     }
- 
+
 
     // set area, room, slot for a user
     private void setupDBrestart() {
-        ResultSet rs = null;
-        PreparedStatement pst = null;
         try {
-            pst = (PreparedStatement) con.prepareStatement("update sessions set area=-1, room=0, slot=0, gamesess=0, state=0");
-            pst.executeUpdate();
-        } catch (SQLException ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-        } finally {
-            try {
-                if(rs != null) {
-                    rs.close();
-                }
-                if(pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException ex) {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
+            URI targetURI = new URI(apiUrl + "sessions/reset");
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(targetURI)
+                    .timeout(Duration.ofSeconds(10))
+                    .PUT(HttpRequest.BodyPublishers.noBody())
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200 && response.statusCode() != 204) {
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Failed to reset sessions on startup: HTTP " + response.statusCode());
             }
+
+        } catch (Exception ex) {
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Network error in setupDBrestart", ex);
         }
     }
 
-	
+
     // set area, room, slot for a user and a state
     public void updateClientOrigin(String userid, int state, int area, int room, int slot) {
-        ResultSet rs = null;
-        PreparedStatement pst = null;
         try {
-            pst = (PreparedStatement) con.prepareStatement("update sessions set state=?, area=?, room=?, slot=? where userid=?");
-            pst.setInt(1, state);
-            pst.setInt(2, area);
-            pst.setInt(3, room);
-            pst.setInt(4, slot);
-            pst.setString(5, userid);
-            pst.executeUpdate();
-        } catch (SQLException ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-        } finally {
-            try {
-                if(rs != null) {
-                    rs.close();
-                }
-                if(pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException ex) {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
+            JsonObject json = new JsonObject();
+            json.addProperty("state", state);
+            json.addProperty("area", area);
+            json.addProperty("room", room);
+            json.addProperty("slot", slot);
+
+            String safeUserId = java.net.URLEncoder.encode(userid, "UTF-8");
+            URI targetURI = new URI(apiUrl + "sessions/" + safeUserId + "/origin");
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(targetURI)
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Content-Type", "application/json")
+                    .PUT(HttpRequest.BodyPublishers.ofString(json.toString()))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200 && response.statusCode() != 204) {
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Failed to update client origin: HTTP " + response.statusCode());
             }
+
+        } catch (Exception ex) {
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Network error in updateClientOrigin", ex);
         }
     }
 
-	
+
     // set game for a user
     public void updateClientGame(String userid, int gamenumber) {
-        ResultSet rs = null;
-        PreparedStatement pst = null;
         try {
-            String gamenum = (new Integer(gamenumber)).toString();      // TODO: I hate Java for this!
-            pst = (PreparedStatement) con.prepareStatement(String.format("update sessions set gamesess='%s' where userid='%s'", gamenum, userid));
-            pst.executeUpdate();
-        } catch (SQLException ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-        } finally {
-            try {
-                if(rs != null) {
-                    rs.close();
-                }
-                if(pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException ex) {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
+            JsonObject json = new JsonObject();
+            json.addProperty("gamenumber", gamenumber);
+
+            String safeUserId = java.net.URLEncoder.encode(userid, "UTF-8");
+            URI targetURI = new URI(apiUrl + "sessions/" + safeUserId + "/game");
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(targetURI)
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Content-Type", "application/json")
+                    .PUT(HttpRequest.BodyPublishers.ofString(json.toString()))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200 && response.statusCode() != 204) {
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Failed to update client game: HTTP " + response.statusCode());
             }
+
+        } catch (Exception ex) {
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Network error in updateClientGame", ex);
         }
     }
 
 
     // get the gamenumber of a given userid
     public int getGameNumber(String userid) {
-        ResultSet rs = null;
-        PreparedStatement pst = null;
         int retval = 0;
+
         try {
-            pst = (PreparedStatement) con.prepareStatement(String.format("select gamesess from sessions where userid='%s'", userid));
-            rs = pst.executeQuery();
-            if(rs.next()){
-                retval = rs.getInt("gamesess");            
+            String safeUserId = java.net.URLEncoder.encode(userid, "UTF-8");
+            URI targetURI = new URI(apiUrl + "sessions/" + safeUserId + "/game");
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(targetURI)
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                retval = Integer.parseInt(response.body().trim());
+            } else if (response.statusCode() == 404) {
+                Logger.getLogger(Database.class.getName()).log(Level.INFO, "Session not found for game number: " + userid);
+            } else {
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Failed to get game number: HTTP " + response.statusCode());
             }
-            
-        } catch (SQLException ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-        } finally {
-            try {
-                if(rs != null) {
-                    rs.close();
-                }
-                if(pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException ex) {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-            }
+
+        } catch (Exception ex) {
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Network error in getGameNumber", ex);
         }
-        
+
         return retval;
     }
 
-	
+
     // get message of the day
     public String getMOTD() {
-        ResultSet rs = null;
-        PreparedStatement pst = null;
-        // check it out ;-)
-        this.testConnection();
-        
         String retval = "";
+
         try {
-            pst = (PreparedStatement) con.prepareStatement("select message from motd where active=1 order by id desc limit 0,1");
-            rs = pst.executeQuery();
-            if(rs.next()){
-                retval = rs.getString("message");            
+            URI targetURI = new URI(apiUrl + "server/motd");
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(targetURI)
+                    .timeout(Duration.ofSeconds(5))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                retval = response.body().trim();
+            } else if (response.statusCode() == 404) {
+                Logger.getLogger(Database.class.getName()).log(Level.INFO, "No active MOTD found.");
+            } else {
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Failed to get MOTD: HTTP " + response.statusCode());
             }
-            
-        } catch (SQLException ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-        } finally {
-            try {
-                if(rs != null) {
-                    rs.close();
-                }
-                if(pst != null) {
-                    pst.close();
-                }
-            } catch (SQLException ex) {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, null, ex);
-            }
+
+        } catch (Exception ex) {
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Network error in getMOTD", ex);
         }
-        
+
         return retval;
     }
-
 }
