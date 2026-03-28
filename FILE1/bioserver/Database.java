@@ -44,7 +44,7 @@ public class Database {
     //borre el contructor puke usaba un archivo para leer la base de datos localmente.
     //Como es un embole levantar una db con mariadb para hacer pruebas, voy a hacer levantar endpoints para la db
     //Asi que modifique gran parte de este codigo.
-    private String apiUrl = "https://yoko.makii.net/api/java";
+    private String apiUrl = "https://yoko.makii.net/api/outbreakjava";
     private final HttpClient client;
 
     public Database() {
