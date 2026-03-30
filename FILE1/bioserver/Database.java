@@ -44,7 +44,7 @@ public class Database {
     //borre el contructor puke usaba un archivo para leer la base de datos localmente.
     //Como es un embole levantar una db con mariadb para hacer pruebas, voy a hacer levantar endpoints para la db
     //Asi que modifique gran parte de este codigo.
-    private String apiUrl = "https://yoko.makii.net/api/outbreakjava";
+    private String apiUrl = "https://yoko.makii.net/api/outbreakjava/";
     private final HttpClient client;
 
     public Database() {
@@ -84,7 +84,7 @@ public class Database {
             Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Failed to get userid by sessionid ", ex);
         }
 
-        return retval; // Retorna el userid o vacío ("") si falló
+        return retval;
     }
 
 
