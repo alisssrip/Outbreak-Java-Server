@@ -34,8 +34,6 @@ import java.util.logging.Logger;
  */
 public class Configuration {
     public String gs_ip;
-    public String db_user;
-    public String db_password;
 
     // constructor
     public Configuration() {
@@ -48,8 +46,6 @@ public class Configuration {
             prop.load(inputStream);
 
             this.gs_ip       = prop.getProperty("gs_ip");
-            this.db_user     = prop.getProperty("db_user");
-            this.db_password = prop.getProperty("db_password");
             
         } catch (FileNotFoundException ex) {
             Logger.getLogger(Configuration.class.getName()).log(Level.SEVERE, null, ex);
