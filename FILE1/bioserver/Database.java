@@ -201,7 +201,7 @@ public class Database {
         catch (Exception ex)
         {
             Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Network error in createNewHNPair", ex);
-            }
+        }
     }
 
     // update handle/nickname of a client
@@ -356,6 +356,41 @@ public class Database {
         return retval;
     }
 
+
+    // get selfhost gameserver IP for a given userid
+    // returns the IP string if there's an active selfhost registered,
+    // or empty string if none (caller should fall back to central gs_ip)
+    public String getGameServerIp(String userid) {
+        String retval = "";
+
+        try {
+            String safeUserId = java.net.URLEncoder.encode(userid, "UTF-8");
+            URI targetURI = new URI(apiUrl + "gameservers/byuser/" + safeUserId);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(targetURI)
+                    .timeout(Duration.ofSeconds(3)) // timeout corto, no queremos bloquear el lobby
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+                retval = json.get("ip").getAsString();
+                Logging.println("Selfhost gameserver found for " + userid + ": " + retval);
+            } else if (response.statusCode() == 404) {
+                // no selfhost registrado, comportamiento normal
+            } else {
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Error getting gameserver IP: HTTP " + response.statusCode());
+            }
+
+        } catch (Exception ex) {
+            Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Could not reach Yoko for gameserver lookup, falling back to central", ex);
+        }
+
+        return retval;
+    }
 
     // get message of the day
     public String getMOTD() {

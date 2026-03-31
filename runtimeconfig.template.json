@@ -1,0 +1,8 @@
+{
+  "configProperties": {
+    "System.Net.Http.SocketsHttpHandler.Http2Support": false,
+    "System.Net.Security.Tls.DefaultFreeThreaded": true,
+    "System.Security.Authentication.SslProtocols.Tls": true,
+    "System.Security.Authentication.SslProtocols.Tls11": true
+  }
+}
