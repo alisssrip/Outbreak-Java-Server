@@ -4,8 +4,8 @@ export SHELL=/bin/bash
 # setup
 BIOSERVER_HOME=$(pwd)
 
-NAME=BIOSERVER1
-DESC="BIOSERVER1"
+NAME=BIOSERVER2
+DESC="BIOSERVER2"
 SU_USER="root"
 MYSQL_LIB="lib/mysql-connector-java-5.1.49.jar"
 BASE_DAMEON="java -cp $MYSQL_LIB:bin bioserver.ServerMain"

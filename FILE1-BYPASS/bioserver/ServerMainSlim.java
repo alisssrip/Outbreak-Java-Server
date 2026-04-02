@@ -22,23 +22,65 @@
 
 package bioserver;
 
+import com.dosse.upnp.UPnP;
+
+import java.io.IOException;
+import java.net.InetAddress;
 import java.util.Date;
+import java.util.Map;
+
+import org.bitlet.weupnp.GatewayDevice;
+import org.bitlet.weupnp.GatewayDiscover;
+import org.bitlet.weupnp.PortMappingEntry;
+import org.xml.sax.SAXException;
+
+import javax.xml.parsers.ParserConfigurationException;
 
 /**
  * BHOF1-Host entry point
- * Starts only the GameServer (port 8690), no Lobby.
+ * Starts only the GameServer (port 25565), no Lobby.
  * Players log in through the central server and get
  * redirected here for the actual game session.
  */
 public class ServerMainSlim {
 
-    public final static int GAMEPORT = 8690;
-
+    public final static int GAMEPORT = 25565;
     public static void main(String[] args) {
+        GatewayDiscover discover = new GatewayDiscover();
+        discover.setTimeout(10000);
+        Map<InetAddress, GatewayDevice> gateways = null;
+        try {
+            gateways = discover.discover();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (SAXException e) {
+            throw new RuntimeException(e);
+        } catch (ParserConfigurationException e) {
+            throw new RuntimeException(e);
+        }
+        if (gateways.isEmpty()) {
+            System.out.println("No se encontró gateway UPnP");
+        } else {
+            GatewayDevice gateway = discover.getValidGateway();
+            if (gateway != null) {
+                PortMappingEntry portMapping = new PortMappingEntry();
+                try {
+                    if (gateway.addPortMapping(GAMEPORT, GAMEPORT,
+                            gateway.getLocalAddress().getHostAddress(),
+                            "TCP", "MyGame")) {
+                        System.out.println("Puerto abierto correctamente");
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                } catch (SAXException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
 
         System.out.println("------------------------------\n" +
                            "-        BHOF1-Host           -\n" +
-                           "-  Selfhost GameServer :8690  -\n" +
+                           "-  Selfhost GameServer :25565 -\n" +
                            "-                             -\n" +
                            "- Based on BioServer          -\n" +
                            "- (c) 2013-2019 obsrv.org     -\n" +

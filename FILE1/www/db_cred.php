@@ -2,11 +2,9 @@
     $serv = 'localhost';
     $datb = 'bioserver';
     $user = 'bioserver';
-    $pass = 'xxxSECUREPASSWORDxxx';
+    $pass = 'xxxxxxxxxxxxxxxx';
     
-    $conn = mysqli_connect($serv, $user, $pass)
+    $conn = mysqli_connect($serv, $user, $pass, $datb)
         or die ("connection error");
 
-    mysqli_select_db($conn, $datb)
-        or die("database failure");
 ?>
