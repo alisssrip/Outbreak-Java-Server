@@ -30,7 +30,7 @@ info "PASO 1: Login del usuario HOST..."
 
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$YOKO/login" \
   -H "Content-Type: application/json" \
-  -d '{"Username":"test","Password":"123","Type":"manual"}')
+  -d '{"Username":"te","Password":"123","Type":"manual"}')
 
 HTTP_CODE=$(echo "$RESPONSE" | tail -1)
 BODY=$(echo "$RESPONSE" | head -1)
@@ -42,7 +42,7 @@ elif [ "$HTTP_CODE" == "401" ]; then
     warn "Usuario no existe, creando cuenta..."
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$YOKO/login" \
       -H "Content-Type: application/json" \
-      -d '{"Username":"test","Password":"123","Type":"newaccount"}')
+      -d '{"Username":"te","Password":"123","Type":"newaccount"}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -1)
     BODY=$(echo "$RESPONSE" | head -1)
     SESSID_HOST=$(echo $BODY | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
@@ -67,10 +67,10 @@ if [ "$HTTP_CODE" == "200" ]; then
     SESSID_CLIENT=$(echo $BODY | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
     ok "Login CLIENT exitoso. SessID: $SESSID_CLIENT"
 elif [ "$HTTP_CODE" == "401" ]; then
-    warn "Usuario no existe, creando cuenta..."
+    warn "Usuario no existe"
     RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$YOKO/login" \
       -H "Content-Type: application/json" \
-      -d '{"Username":"testclient","Password":"test123","Type":"newaccount"}')
+      -d '{"Username":"te","Password":"123","Type":"newaccount"}')
     HTTP_CODE=$(echo "$RESPONSE" | tail -1)
     BODY=$(echo "$RESPONSE" | head -1)
     SESSID_CLIENT=$(echo $BODY | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
@@ -84,7 +84,7 @@ echo ""
 # ── PASO 3: HOST registra su GameServer ──────────────────────────────────────
 info "PASO 3: HOST registra su GameServer en Yoko..."
 
-SELFHOST_IP="192.168.0.155"
+SELFHOST_IP="181.1.83.213"
 SELFHOST_PORT=8690
 
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$YOKO/gameservers/register" \
@@ -198,11 +198,11 @@ echo ""
 # ── PASO 8: Verificar que ya no aparece en la lista ──────────────────────────
 info "PASO 8: Verificando que el server desapareció de la lista..."
 
-RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$YOKO/gameservers/byuser/test")
+RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$YOKO/gameservers/byuser/te")
 HTTP_CODE=$(echo "$RESPONSE" | tail -1)
 
 if [ "$HTTP_CODE" == "404" ]; then
-    ok "Correcto, ya no hay selfhost activo para test"
+    ok "Correcto, ya no hay selfhost activo para te"
 else
     warn "Inesperado: HTTP $HTTP_CODE - todavía aparece en lista"
 fi

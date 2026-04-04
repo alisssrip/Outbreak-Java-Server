@@ -24,3 +24,11 @@ hs_err_pid*
 replay_pid*
 /jdk-17.0.12 linux
 /jdk-17.0.12 win
+FILE1-BYPASS/out/production/FILE1-BYPASS/START_BHOF1HOST.sh
+FILE1-BYPASS/out/production/FILE1-BYPASS/START_BHOF1HOST.bat
+FILE1-BYPASS/START_BHOF1HOST.bat
+FILE1-BYPASS/START_BHOF1HOST.sh
+FILE1/COMPILE AND START.sh
+FILE1/DeployJava.sh
+FILE1/observice.sh
+FILE1/observice.sh

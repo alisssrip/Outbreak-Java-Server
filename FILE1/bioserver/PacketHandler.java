@@ -1558,6 +1558,7 @@ class PacketHandler implements Runnable {
                 Client slotHost = clients.getHostofSlot(cl.getArea(), cl.getRoom(), cl.getSlot());
                 if (slotHost != null) {
                     String selfhostIp = db.getGameServerIp(slotHost.getUserID());
+                    Logging.println(slotHost.getUserID());
                     if (selfhostIp != null && !selfhostIp.isEmpty()) {
                         ipBytes = InetAddress.getByName(selfhostIp).getAddress();
                         Logging.println("GSINFO: using selfhost server " + selfhostIp + " (host: " + slotHost.getUserID() + ")");

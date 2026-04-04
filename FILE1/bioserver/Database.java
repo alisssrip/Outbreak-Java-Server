@@ -360,16 +360,16 @@ public class Database {
     // get selfhost gameserver IP for a given userid
     // returns the IP string if there's an active selfhost registered,
     // or empty string if none (caller should fall back to central gs_ip)
-    public String getGameServerIp(String userid) {
+    public String getGameServerIp(String userName) {
         String retval = "";
 
         try {
-            String safeUserId = java.net.URLEncoder.encode(userid, "UTF-8");
-            URI targetURI = new URI(apiUrl + "gameservers/byuser/" + safeUserId);
+            String safeUserId = java.net.URLEncoder.encode(userName, "UTF-8");
+            URI targetURI = new URI(apiUrl + "gameservers/byusername/" + safeUserId);
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(targetURI)
-                    .timeout(Duration.ofSeconds(3)) // timeout corto, no queremos bloquear el lobby
+                    .timeout(Duration.ofSeconds(3))
                     .GET()
                     .build();
 
