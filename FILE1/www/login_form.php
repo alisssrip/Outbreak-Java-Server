@@ -49,7 +49,6 @@ if (!function_exists('curl_init')) {
                 . 'Iniciá sesión en el launcher primero.';
 
             } else if ($httpCode == 409) {
-                // Múltiples sessions — bloqueamos hasta que esté el flujo de confirmación
                 $resData = json_decode($response, true);
                 $userids = $resData["userids"] ?? [];
                 $list = !empty($userids)
