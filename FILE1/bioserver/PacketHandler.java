@@ -419,29 +419,26 @@ class PacketHandler implements Runnable {
 
         // session check is OK, a user with this session is in database
         if(!"".equals(userid)) {
-            // kill old connections of this client
             cl = clients.findClient(userid);
             if(cl != null) {
                 List cls = clients.getList();
                 for(int i=0; i<cls.size(); i++) {
                     cl = (Client) cls.get(i);
                     if(cl.getUserID().equals(userid)) {
-                        Logging.println("LS: Disconnect double session for userid "+userid);
+                        Logging.println("LS: kick double session " + userid);
                         server.disconnect(cl.getSocket());
                         this.removeClient(server, cl);
                     }
                 }
             }
 
-            // setup client object for this user/session
             clients.add((new Client(socket, userid, session)));
             cl = clients.findClient(socket);
             db.updateClientOrigin(userid, STATUS_LOBBY, 0, 0, 0);
+            db.setOnline(userid, true);
 
             int gamenr = db.getGameNumber(cl.getUserID());
             if(gamenr > 0) {
-                // we are in meeting room then
-                // gamenumber not set yet because needed for broadcast packets in AGL!
                 cl.setArea(51);
                 db.updateClientOrigin(userid, STATUS_AGLOBBY, 51, 0, 0);
             }
@@ -2021,9 +2018,7 @@ class PacketHandler implements Runnable {
                 byte host = cl.getHostFlag();
                 byte[] who = cl.getHNPair().getHandle();
 
-                // set the player to offline status
-                db.updateClientOrigin(cl.getUserID(), STATUS_OFFLINE, -1, 0, 0);
-
+                db.updateClientOrigin(cl.getUserID(), STATUS_OFFLINE, -1, 0, 0, false);
                 // first of all remove this client from list
                 clients.remove(cl);
 
@@ -2095,12 +2090,9 @@ class PacketHandler implements Runnable {
                 byte host = cl.getHostFlag();
                 byte[] who = cl.getHNPair().getHandle();
 
-                // set the player to offline status
-                db.updateClientOrigin(cl.getUserID(), STATUS_OFFLINE, -1, 0, 0);
-
+                db.updateClientOrigin(cl.getUserID(), STATUS_OFFLINE, -1, 0, 0, false);
                 // first of all remove this client from list
                 clients.remove(cl);
-
                 // it's a host, so we are in normal lobbies
                 if(host==1 && slot!=0) {
                     slots.getSlot(area, room, slot).reset();
