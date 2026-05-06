@@ -1,5 +1,5 @@
 /*
-    BioServer - Emulation of the long gone server for 
+    BioServer - Emulation of the long gone server for
                 Biohazard Outbreak File #1 (Playstation 2)
 
     Copyright (C) 2013-2019 obsrv.org (no23@deathless.net)
@@ -45,6 +45,7 @@ public class Database {
     //Como es un embole levantar una db con mariadb para hacer pruebas, voy a hacer levantar endpoints para la db
     //Asi que modifique gran parte de este codigo.
     private String apiUrl = "https://yoko.makii.net/api/outbreakjava/";
+    private String serversApi = "https://yoko.makii.net/api/servers/";
     private final HttpClient client;
 
     public Database() {
@@ -267,13 +268,14 @@ public class Database {
 
 
     // set area, room, slot for a user and a state
-    public void updateClientOrigin(String userid, int state, int area, int room, int slot) {
+    public void updateClientOrigin(String userid, int state, int area, int room, int slot, boolean online) {
         try {
             JsonObject json = new JsonObject();
             json.addProperty("state", state);
             json.addProperty("area", area);
             json.addProperty("room", room);
             json.addProperty("slot", slot);
+            json.addProperty("online", online);
 
             String safeUserId = java.net.URLEncoder.encode(userid, "UTF-8");
             URI targetURI = new URI(apiUrl + "sessions/" + safeUserId + "/origin");
@@ -288,11 +290,10 @@ public class Database {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200 && response.statusCode() != 204) {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Failed to update client origin: HTTP " + response.statusCode());
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "updateClientOrigin failed: HTTP " + response.statusCode());
             }
-
         } catch (Exception ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "Network error in updateClientOrigin", ex);
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "updateClientOrigin error", ex);
         }
     }
 
@@ -357,19 +358,62 @@ public class Database {
     }
 
 
-    // get selfhost gameserver IP for a given userid
-    // returns the IP string if there's an active selfhost registered,
-    // or empty string if none (caller should fall back to central gs_ip)
-    public String getGameServerIp(String userid) {
-        String retval = "";
-
+    public String getGameServerIp(String userName) {
+        String safeUserId;
         try {
+            safeUserId = java.net.URLEncoder.encode(userName, "UTF-8");
+        } catch (UnsupportedEncodingException ex) {
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "URL encode failed", ex);
+            return "";
+        }
+        String selfhost = lookupGameServer(apiUrl + "gameservers/byusername/" + safeUserId);
+        if (!selfhost.isEmpty()) {
+            Logging.println("Selfhost gameserver found for " + userName + ": " + selfhost);
+            return selfhost;
+        }
+
+        String regional = lookupGameServer(serversApi + "byuser/" + safeUserId);
+        if (!regional.isEmpty()) {
+            Logging.println("Regional server for " + userName + ": " + regional);
+            return regional;
+        }
+
+        Logger.getLogger(Database.class.getName()).log(Level.INFO,
+                "No selfhost or regional server found for " + userName);
+        return "";
+    }
+
+    public void setOnline(String userid, boolean online) {
+        try {
+            JsonObject json = new JsonObject();
+            json.addProperty("online", online);
+
             String safeUserId = java.net.URLEncoder.encode(userid, "UTF-8");
-            URI targetURI = new URI(apiUrl + "gameservers/byuser/" + safeUserId);
+            URI targetURI = new URI(apiUrl + "sessions/" + safeUserId + "/online");
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(targetURI)
-                    .timeout(Duration.ofSeconds(3)) // timeout corto, no queremos bloquear el lobby
+                    .timeout(Duration.ofSeconds(5))
+                    .header("Content-Type", "application/json")
+                    .PUT(HttpRequest.BodyPublishers.ofString(json.toString()))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200 && response.statusCode() != 204) {
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "setOnline failed: HTTP " + response.statusCode());
+            }
+        } catch (Exception ex) {
+            Logger.getLogger(Database.class.getName()).log(Level.SEVERE, "setOnline error", ex);
+        }
+    }
+
+    private String lookupGameServer(String url) {
+        try {
+            URI targetURI = new URI(url);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(targetURI)
+                    .timeout(Duration.ofSeconds(3))
                     .GET()
                     .build();
 
@@ -377,19 +421,19 @@ public class Database {
 
             if (response.statusCode() == 200) {
                 JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
-                retval = json.get("ip").getAsString();
-                Logging.println("Selfhost gameserver found for " + userid + ": " + retval);
+                return json.get("ip").getAsString();
             } else if (response.statusCode() == 404) {
-                // no selfhost registrado, comportamiento normal
+                return "";
             } else {
-                Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Error getting gameserver IP: HTTP " + response.statusCode());
+                Logger.getLogger(Database.class.getName()).log(Level.WARNING,
+                        "Lookup HTTP " + response.statusCode() + " on " + url);
+                return "";
             }
-
         } catch (Exception ex) {
-            Logger.getLogger(Database.class.getName()).log(Level.WARNING, "Could not reach Yoko for gameserver lookup, falling back to central", ex);
+            Logger.getLogger(Database.class.getName()).log(Level.WARNING,
+                    "Could not reach Yoko at " + url, ex);
+            return "";
         }
-
-        return retval;
     }
 
     // get message of the day

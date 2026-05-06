@@ -419,31 +419,28 @@ class PacketHandler implements Runnable {
 
         // session check is OK, a user with this session is in database
         if(!"".equals(userid)) {
-            // kill old connections of this client
             cl = clients.findClient(userid);
             if(cl != null) {
                 List cls = clients.getList();
                 for(int i=0; i<cls.size(); i++) {
                     cl = (Client) cls.get(i);
                     if(cl.getUserID().equals(userid)) {
-                        Logging.println("LS: Disconnect double session for userid "+userid);
+                        Logging.println("LS: kick double session " + userid);
                         server.disconnect(cl.getSocket());
                         this.removeClient(server, cl);
                     }
                 }
             }
 
-            // setup client object for this user/session
             clients.add((new Client(socket, userid, session)));
             cl = clients.findClient(socket);
-            db.updateClientOrigin(userid, STATUS_LOBBY, 0, 0, 0);
+            db.updateClientOrigin(userid, STATUS_LOBBY, 0, 0, 0, true);
+            db.setOnline(userid, true);
 
             int gamenr = db.getGameNumber(cl.getUserID());
             if(gamenr > 0) {
-                // we are in meeting room then
-                // gamenumber not set yet because needed for broadcast packets in AGL!
                 cl.setArea(51);
-                db.updateClientOrigin(userid, STATUS_AGLOBBY, 51, 0, 0);
+                db.updateClientOrigin(userid, STATUS_AGLOBBY, 51, 0, 0, true);
             }
 
             return(true);
@@ -728,7 +725,7 @@ class PacketHandler implements Runnable {
         int nr = ps.getNumber();
         Client cl = clients.findClient(socket);
         cl.setArea(nr);
-        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, nr, 0, 0);
+        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, nr, 0, 0, true);
         retval[0] = (byte) ((nr >> 8)&0xff);
         retval[1] = (byte) (nr &0xff);
         Packet p = new Packet(Commands.AREASELECT, Commands.TELL, Commands.SERVER, ps.getPacketID(), retval);
@@ -819,7 +816,7 @@ class PacketHandler implements Runnable {
         int area = cl.getArea();
         int room = ps.getNumber();
         cl.setRoom(room);
-        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, area, room, 0);
+        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, area, room, 0, true);
         retval[0] = (byte) ((room >> 8)&0xff);
         retval[1] = (byte) (room &0xff);
         Packet p = new Packet(Commands.ENTERROOM, Commands.TELL, Commands.SERVER, ps.getPacketID(), retval);
@@ -1144,7 +1141,7 @@ class PacketHandler implements Runnable {
         int area = cl.getArea();
         int room = cl.getRoom();
         cl.setRoom(0);
-        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, area, 0, 0);
+        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, area, 0, 0, true);
 
         Packet p = new Packet(Commands.EXITSLOTLIST, Commands.TELL, Commands.SERVER, ps.getPacketID());
         this.addOutPacket(server, socket, p);
@@ -1156,7 +1153,7 @@ class PacketHandler implements Runnable {
         int nr = clients.findClient(socket).getArea();
         Client cl = clients.findClient(socket);
         cl.setArea(0);
-        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, 0, 0, 0);
+        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, 0, 0, 0, true);
 
         Packet p = new Packet(Commands.EXITAREA, Commands.TELL, Commands.SERVER, ps.getPacketID());
         this.addOutPacket(server, socket, p);
@@ -1211,7 +1208,7 @@ class PacketHandler implements Runnable {
 
         // set usage and playerstatus
         cl.setSlot(slot);
-        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, area, room, slot);
+        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, area, room, slot, true);
         cl.setHostFlag((byte) 1);
         cl.setPlayerNum((byte) 1);
         slots.getSlot(area, room, slot).setStatus(Slot.STATUS_INCREATE);
@@ -1416,7 +1413,7 @@ class PacketHandler implements Runnable {
         this.broadcastLeaveSlot(server, socket);
         cl.setPlayerNum((byte) 0);
         cl.setSlot((byte) 0);
-        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, area, room, 0);
+        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, area, room, 0, true);
 
         this.broadcastSlotAttrib2(server, area, room, slot);
 
@@ -1558,6 +1555,7 @@ class PacketHandler implements Runnable {
                 Client slotHost = clients.getHostofSlot(cl.getArea(), cl.getRoom(), cl.getSlot());
                 if (slotHost != null) {
                     String selfhostIp = db.getGameServerIp(slotHost.getUserID());
+                    Logging.println(slotHost.getUserID());
                     if (selfhostIp != null && !selfhostIp.isEmpty()) {
                         ipBytes = InetAddress.getByName(selfhostIp).getAddress();
                         Logging.println("GSINFO: using selfhost server " + selfhostIp + " (host: " + slotHost.getUserID() + ")");
@@ -1628,7 +1626,7 @@ class PacketHandler implements Runnable {
         int gamenr = db.getGameNumber(cl.getUserID());
         cl.gamenumber = gamenr;
         cl.setArea(51);        // we are in meeting room then
-        db.updateClientOrigin(cl.getUserID(), STATUS_AGLOBBY, 51, cl.getRoom(), cl.getSlot());
+        db.updateClientOrigin(cl.getUserID(), STATUS_AGLOBBY, 51, cl.getRoom(), cl.getSlot(), true);
 
         // accept this player in post-game lobby
         p = new Packet(Commands.ENTERAGL, Commands.TELL, Commands.SERVER, ps.getPacketID());
@@ -1684,7 +1682,7 @@ class PacketHandler implements Runnable {
         // set player back into area selection
         cl.setArea(0);
         cl.gamenumber = 0;
-        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, 0, 0, 0);
+        db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, 0, 0, 0, true);
         db.updateClientGame(cl.getUserID(), 0);
 
         p = new Packet(Commands.LEAVEAGL, Commands.TELL, Commands.SERVER, ps.getPacketID());
@@ -1734,7 +1732,7 @@ class PacketHandler implements Runnable {
             byte player = clients.getFreePlayerNum(area, room, slot);
             cl.setPlayerNum(player);
             cl.setSlot(slot);
-            db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, area, room, slot);
+            db.updateClientOrigin(cl.getUserID(), STATUS_LOBBY, area, room, slot, true);
 
             Packet p = new Packet(Commands.JOINGAME, Commands.TELL, Commands.SERVER, ps.getPacketID(), retslot);
             this.addOutPacket(server, socket, p);
@@ -2020,9 +2018,7 @@ class PacketHandler implements Runnable {
                 byte host = cl.getHostFlag();
                 byte[] who = cl.getHNPair().getHandle();
 
-                // set the player to offline status
-                db.updateClientOrigin(cl.getUserID(), STATUS_OFFLINE, -1, 0, 0);
-
+                db.updateClientOrigin(cl.getUserID(), STATUS_OFFLINE, -1, 0, 0, false);
                 // first of all remove this client from list
                 clients.remove(cl);
 
@@ -2094,12 +2090,9 @@ class PacketHandler implements Runnable {
                 byte host = cl.getHostFlag();
                 byte[] who = cl.getHNPair().getHandle();
 
-                // set the player to offline status
-                db.updateClientOrigin(cl.getUserID(), STATUS_OFFLINE, -1, 0, 0);
-
+                db.updateClientOrigin(cl.getUserID(), STATUS_OFFLINE, -1, 0, 0, false);
                 // first of all remove this client from list
                 clients.remove(cl);
-
                 // it's a host, so we are in normal lobbies
                 if(host==1 && slot!=0) {
                     slots.getSlot(area, room, slot).reset();

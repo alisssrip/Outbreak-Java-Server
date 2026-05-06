@@ -1,0 +1,202 @@
+#!/bin/bash
+
+YOKO="https://yoko.makii.net/api/outbreakjava"
+
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+ok()   { echo -e "${GREEN}[OK]${NC} $1"; }
+fail() { echo -e "${RED}[FAIL]${NC} $1"; exit 1; }
+info() { echo -e "${CYAN}[..]${NC} $1"; }
+warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+
+echo ""
+echo "===================================="
+echo "  OutbreakHub - Selfhost Test"
+echo "===================================="
+echo ""
+
+# STEP 1: HOST login
+info "HOST login..."
+
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$YOKO/login" \
+  -H "Content-Type: application/json" \
+  -d '{"Username":"te","Password":"123","Type":"manual"}')
+
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+BODY=$(echo "$RESPONSE" | head -1)
+
+if [ "$HTTP_CODE" == "200" ]; then
+    SESSID_HOST=$(echo $BODY | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
+    ok "HOST logged in. SessID: $SESSID_HOST"
+elif [ "$HTTP_CODE" == "401" ]; then
+    warn "User not found, creating account..."
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$YOKO/login" \
+      -H "Content-Type: application/json" \
+      -d '{"Username":"te","Password":"123","Type":"newaccount"}')
+    HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+    BODY=$(echo "$RESPONSE" | head -1)
+    SESSID_HOST=$(echo $BODY | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
+    ok "Account created. SessID: $SESSID_HOST"
+else
+    fail "HOST login failed. HTTP $HTTP_CODE - $BODY"
+fi
+
+echo ""
+
+# STEP 2: CLIENT login
+info "CLIENT login..."
+
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$YOKO/login" \
+  -H "Content-Type: application/json" \
+  -d '{"Username":"a","Password":"123","Type":"manual"}')
+
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+BODY=$(echo "$RESPONSE" | head -1)
+
+if [ "$HTTP_CODE" == "200" ]; then
+    SESSID_CLIENT=$(echo $BODY | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
+    ok "CLIENT logged in. SessID: $SESSID_CLIENT"
+elif [ "$HTTP_CODE" == "401" ]; then
+    warn "User not found, creating account..."
+    RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$YOKO/login" \
+      -H "Content-Type: application/json" \
+      -d '{"Username":"a","Password":"123","Type":"newaccount"}')
+    HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+    BODY=$(echo "$RESPONSE" | head -1)
+    SESSID_CLIENT=$(echo $BODY | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
+    ok "Account created. SessID: $SESSID_CLIENT"
+else
+    fail "CLIENT login failed. HTTP $HTTP_CODE - $BODY"
+fi
+
+echo ""
+
+# STEP 3: Register GameServer
+info "Registering GameServer..."
+
+SELFHOST_IP="192.0.0.0"
+SELFHOST_PORT=8690
+
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$YOKO/gameservers/register" \
+  -H "Content-Type: application/json" \
+  -d "{\"Sessid\":\"$SESSID_HOST\",\"PublicIp\":\"$SELFHOST_IP\",\"Port\":$SELFHOST_PORT,\"Region\":\"RU\"}")
+
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+BODY=$(echo "$RESPONSE" | head -1)
+
+if [ "$HTTP_CODE" == "200" ]; then
+    ok "GameServer registered. $BODY"
+elif [ "$HTTP_CODE" == "400" ]; then
+    warn "Port check failed (Java not running?): $BODY"
+else
+    fail "Register failed. HTTP $HTTP_CODE - $BODY"
+fi
+
+echo ""
+
+# STEP 4: List GameServers
+info "Listing active GameServers..."
+
+RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$YOKO/gameservers")
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+BODY=$(echo "$RESPONSE" | head -1)
+
+if [ "$HTTP_CODE" == "200" ]; then
+    ok "$BODY"
+else
+    fail "List GameServers failed. HTTP $HTTP_CODE"
+fi
+
+echo ""
+
+# STEP 5: Lookup by user (simulates sendGSinfo)
+info "GET /gameservers/byuser/te"
+
+RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$YOKO/gameservers/byuser/te")
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+BODY=$(echo "$RESPONSE" | head -1)
+
+if [ "$HTTP_CODE" == "200" ]; then
+    ok "PS2 would be redirected to: $BODY"
+elif [ "$HTTP_CODE" == "404" ]; then
+    warn "No active selfhost for te → central IP would be used"
+else
+    fail "Byuser lookup failed. HTTP $HTTP_CODE"
+fi
+
+echo ""
+
+# STEP 6: Heartbeat
+info "Sending heartbeat..."
+
+RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "$YOKO/gameservers/heartbeat?sessid=$SESSID_HOST")
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+
+if [ "$HTTP_CODE" == "204" ]; then
+    ok "Heartbeat OK"
+else
+    warn "Heartbeat returned HTTP $HTTP_CODE"
+fi
+
+echo ""
+echo "===================================="
+echo -e "  ${GREEN}Selfhost active!${NC}"
+echo "===================================="
+echo ""
+echo -e "  Connect the emulator now."
+echo -e "  Central Java server should redirect to:"
+echo -e "  ${YELLOW}$SELFHOST_IP:$SELFHOST_PORT${NC}"
+echo ""
+echo -e "  HOST SessID   : ${YELLOW}$SESSID_HOST${NC}"
+echo -e "  CLIENT SessID : ${YELLOW}$SESSID_CLIENT${NC}"
+echo ""
+echo -e "  ${CYAN}Keeping registration alive (heartbeat every 60s)${NC}"
+echo -e "  ${CYAN}Press ENTER when done.${NC}"
+echo ""
+
+(while true; do
+    sleep 60
+    curl -s -X PUT "$YOKO/gameservers/heartbeat?sessid=$SESSID_HOST" > /dev/null
+done) &
+HEARTBEAT_PID=$!
+
+read -p ""
+kill $HEARTBEAT_PID 2>/dev/null
+
+echo ""
+
+# STEP 7: Unregister
+info "Unregistering GameServer..."
+
+RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE "$YOKO/gameservers/unregister?sessid=$SESSID_HOST")
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+
+if [ "$HTTP_CODE" == "204" ]; then
+    ok "Unregistered"
+else
+    warn "Unregister returned HTTP $HTTP_CODE"
+fi
+
+echo ""
+
+# STEP 8: Verify removal
+info "Verifying server is gone..."
+
+RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "$YOKO/gameservers/byuser/te")
+HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+
+if [ "$HTTP_CODE" == "404" ]; then
+    ok "No active selfhost for te"
+else
+    warn "Unexpected: HTTP $HTTP_CODE - still showing up"
+fi
+
+echo ""
+echo "===================================="
+echo "  Done"
+echo "===================================="
+echo ""

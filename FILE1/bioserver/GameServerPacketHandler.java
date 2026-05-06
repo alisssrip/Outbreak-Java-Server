@@ -184,7 +184,7 @@ class GameServerPacketHandler implements Runnable {
             cl.gamenumber = gamenr;
 
             // set this user to ingame status
-            db.updateClientOrigin(userid, PacketHandler.STATUS_GAME, 0, 0, 0);
+            db.updateClientOrigin(userid, PacketHandler.STATUS_GAME, 0, 0, 0, true);
             return(true);
         } else {
             // the session check failed, disconnect this client
@@ -205,24 +205,20 @@ class GameServerPacketHandler implements Runnable {
             Logging.println("GS: " + userid + " kicked");
         }
     }
-    
+
     public void removeNoDisconnectClient(GameServerThread server, SocketChannel socket) {
         Client cl = clients.findClient(socket);
-        // set user to offline status in database
-        db.updateClientOrigin(cl.getUserID(), PacketHandler.STATUS_OFFLINE, -1, 0, 0);
-        clients.remove(cl);     
+        if (cl == null) return;
+        db.updateClientOrigin(cl.getUserID(), PacketHandler.STATUS_OFFLINE, -1, 0, 0, false);
+        clients.remove(cl);
     }
 
     // when a host or client leaves unexpected, we have to handle this
     public void removeClient(GameServerThread server, Client cl) {
         if(cl == null) return;
-
         SocketChannel socket = cl.getSocket();
-        // set user to offline status in database
-        db.updateClientOrigin(cl.getUserID(), PacketHandler.STATUS_OFFLINE, -1, 0, 0);
-        clients.remove(cl);     
-        
-        // close connection from server side
+        db.updateClientOrigin(cl.getUserID(), PacketHandler.STATUS_OFFLINE, -1, 0, 0, false);
+        clients.remove(cl);
         server.disconnect(socket);
     }
 

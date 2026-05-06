@@ -2,7 +2,7 @@
 
 cd "$(dirname "$0")"
 
-JAVA_PORTABLE_PATH="/home/nacho/.local/bin/jdk-17.0.12 linux/bin"
+JAVA_PORTABLE_PATH="linux/java/jdk"
 JAVA_EXEC="$JAVA_PORTABLE_PATH/java"
 JAVAC_EXEC="$JAVA_PORTABLE_PATH/javac"
 CLASSPATH="lib/gson-2.10.1.jar:lib/mysql-connector-java-5.1.49.jar:lib/weupnp-0.1.4.jar:lib/WaifUPnP.jar:bin"

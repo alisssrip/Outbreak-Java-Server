@@ -1,6 +1,7 @@
 #!/bin/bash
 export SHELL=/bin/bash
 
+
 # setup
 BIOSERVER_HOME=$(pwd)
 
