@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="f65a2100-e731-4d0c-9153-dd925c726221" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../START_BHOF1HOST.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../START_BHOF1HOST.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ServerMainSlim.java" beforeDir="false" afterPath="$PROJECT_DIR$/ServerMainSlim.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../config.properties" beforeDir="false" afterPath="$PROJECT_DIR$/../config.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../test_selfhost.sh" beforeDir="false" afterPath="$PROJECT_DIR$/../../test_selfhost.sh" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 0,
+  "fromUser": false
+}]]></component>
+  <component name="ProjectId" id="3Bs0y06RHEsrbXVud23HaJz0vLp" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Application.ServerMainSlim.executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "git-widget-placeholder": "main",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/home/nacho/Documents/GitHub/Outbreak-Java-Server/FILE1-BYPASS",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.keymap",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f65a2100-e731-4d0c-9153-dd925c726221" name="Changes" comment="" />
+      <created>1775262720551</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1775262720551</updated>
+      <workItem from="1775262721762" duration="194000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>

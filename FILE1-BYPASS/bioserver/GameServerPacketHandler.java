@@ -101,6 +101,9 @@ class GameServerPacketHandler implements Runnable {
                 System.arraycopy(data, 0, acopy, 0, count);
 
                 Client cl = clients.findClient(socket);
+                if(data[0] == Commands.GAMECLIENT) {
+                    GamePlayerStats.logPlayerStats(cl);
+                }
                 cl.connalive = true;
                 int gamenum = cl.gamenumber;
                 List cls = clients.getList();

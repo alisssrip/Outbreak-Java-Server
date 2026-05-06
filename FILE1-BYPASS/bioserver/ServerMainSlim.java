@@ -44,9 +44,10 @@ import javax.xml.parsers.ParserConfigurationException;
  */
 public class ServerMainSlim {
 
-    public final static int GAMEPORT = 25565;
+    public final static int GAMEPORT = 8690;
     public static void main(String[] args) {
         GatewayDiscover discover = new GatewayDiscover();
+        /*
         discover.setTimeout(10000);
         Map<InetAddress, GatewayDevice> gateways = null;
         try {
@@ -58,6 +59,7 @@ public class ServerMainSlim {
         } catch (ParserConfigurationException e) {
             throw new RuntimeException(e);
         }
+
         if (gateways.isEmpty()) {
             System.out.println("No se encontró gateway UPnP");
         } else {
@@ -76,11 +78,12 @@ public class ServerMainSlim {
                     throw new RuntimeException(e);
                 }
             }
-        }
 
+        }
+*/
         System.out.println("------------------------------\n" +
                            "-        BHOF1-Host           -\n" +
-                           "-  Selfhost GameServer :25565 -\n" +
+                           "-  Selfhost GameServer :8690  -\n" +
                            "-                             -\n" +
                            "- Based on BioServer          -\n" +
                            "- (c) 2013-2019 obsrv.org     -\n" +
